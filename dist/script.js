@@ -1,4 +1,31 @@
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.GaiaHeader=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+;(function () {
+
+  function __loadHTML(html, path) {
+    var doc = document.implementation.createHTMLDocument('import');
+
+    var meta = doc.createElement('meta');
+    meta.setAttribute('charset', 'utf-8');
+    doc.head.appendChild(meta);
+
+    // FIXME: None of this seems to help rebase paths for CSS. Maybe that's impossible.
+    var jsPath = document.currentScript.getAttribute('src');
+    var spos = jsPath.lastIndexOf('/');
+    var baseHref = jsPath.substr(0, spos + 1) + path;
+
+    doc._URL = baseHref;
+
+    var base = doc.createElement('base');
+    base.setAttribute('href', baseHref);
+    doc.baseURI = baseHref;
+    doc.head.appendChild(base);
+
+    doc.body.innerHTML = html;
+    return doc;
+  }
+
+  
+    (function (__ownerDocument) {
+      (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 (function(define){'use strict';define(function(require,exports,module){
 
 /**
@@ -367,25 +394,26 @@ w[n]=c(r,m.exports,m)||m.exports;};})('gaia-icons',this));
 });})((function(n,w){'use strict';return typeof define=='function'&&define.amd?
 define:typeof module=='object'?function(c){c(require,exports,module);}:
 function(c){var m={exports:{}},r=function(n){return w[n];};
-w[n]=c(r,m.exports,m)||m.exports;};})('./lib/font-fit',this));
+w[n]=c(r,m.exports,m)||m.exports;};})('../lib/font-fit',this));
 
 },{}],3:[function(require,module,exports){
 (function(define){'use strict';define(function(require,exports,module){
-/*globals define*//*jshint node:true*/
+/*jshint esnext:true*/
+/*jshint node:true*/
+/*globals define*/
 
 /**
  * Dependencies
  */
 
 var loadGaiaIcons = require('gaia-icons');
-var fontFit = require('./lib/font-fit');
+var fontFit = require('../lib/font-fit');
 
 /**
  * Locals
  */
 
 var baseComponents = window.COMPONENTS_BASE_URL || 'bower_components/';
-var base = window.GAIA_HEADER_BASE_URL || baseComponents + 'gaia-header/';
 
 /**
  * Element prototype, extends from HTMLElement
@@ -431,47 +459,47 @@ proto.createdCallback = function() {
   this.setupInteractionListeners();
   shadow.appendChild(tmpl);
   this.styleHack();
+  this.runFontFit();
+};
 
-  // Font fit must be run only once the element is styled
-  this.addEventListener('styled', this.runFontFit.bind(this));
+proto.styleHack = function() {
+  var style = this.shadowRoot.querySelector('style').cloneNode(true);
+  this.classList.add('-content', '-host');
+  style.setAttribute('scoped', '');
+  this.appendChild(style);
+};
+
+proto.attachedCallback = function() {
+  this.shadowStyleHack();
+  this.rerunFontFit();
 };
 
 /**
- * Load in the the component's styles.
+ * Workaround for bug 1056783.
  *
- * We're working around a few platform bugs
- * here related to @import in the shadow-dom
- * stylesheet. When HTML-Imports are ready
- * we won't have to use @import anymore.
- *
- * The `-content` class is added to the element
- * as a simple 'polyfill' for `::content` selector.
- * We can use `.-content` in our CSS to indicate
- * we're styling 'distributed' nodes. This will
- * make the transition to `::content` a lot simpler.
+ * Fixes shadow-dom stylesheets not applying
+ * when shadow host node is detached on
+ * shadow-root creation.
  *
  * @private
  */
-proto.styleHack = function() {
-  var style = document.createElement('style');
-  var self = this;
+proto.shadowStyleHack = function() {
+  var style = this.shadowRoot.querySelector('style');
+  this.shadowRoot.removeChild(style);
+  this.shadowRoot.appendChild(style);
+};
 
-  this.style.visibility = 'hidden';
-  style.innerHTML = '@import url(' + base + 'style.css);';
-  style.setAttribute('scoped', '');
-  this.classList.add('-content');
-  this.appendChild(style);
-
-  // There are platform issues around using
-  // @import inside shadow root. Ensuring the
-  // stylesheet has loaded before putting it in
-  // the shadow root seems to work around this.
-  style.addEventListener('load', function() {
-    self.shadowRoot.appendChild(style.cloneNode(true));
-    self.style.visibility = '';
-    self.styled = true;
-    self.dispatchEvent(new CustomEvent('styled'));
-  });
+/**
+ * Rerun font-fit logic.
+ *
+ * TODO: We really need an official API for this.
+ *
+ * @private
+ */
+proto.rerunFontFit = function() {
+  for (var i = 0; i < this.els.headings.length; i++) {
+    this.els.headings[i].textContent = this.els.headings[i].textContent;
+  }
 };
 
 proto.runFontFit = function() {
@@ -579,15 +607,10 @@ proto.setupInteractionListeners = function() {
 // things getting out of sync. This is a short-term
 // hack until we can import entire custom-elements
 // using HTML Imports (bug 877072).
-var template = document.createElement('template');
-template.innerHTML = [
-  '<div class="inner">',
-    '<button class="action-button">',
-      '<content select=".l10n-action"></content>',
-    '</button>',
-    '<content select="h1,h2,h3,h4,a,button"></content>',
-  '</div>'
-].join('');
+
+var ownerDocument = (typeof __ownerDocument != 'undefined') ?  __ownerDocument :
+  (document._currentScript || document.currentScript).ownerDocument;
+var template = ownerDocument.querySelector('template');
 
 /**
  * Adds a '.active' helper class to the given
@@ -660,5 +683,8 @@ define:typeof module=='object'?function(c){c(require,exports,module);}:
 function(c){var m={exports:{}},r=function(n){return w[n];};
 w[n]=c(r,m.exports,m)||m.exports;};})('gaia-header',this));
 
-},{"./lib/font-fit":2,"gaia-icons":1}]},{},[3])(3)
-});
+},{"../lib/font-fit":2,"gaia-icons":1}]},{},[3])
+    }).call(this, __loadHTML("<template>\n\n  <style>gaia-header {\n  display: block;\n}\n:root {\n  --gaia-header-button-color:\n    var(--header-button-color,\n    var(--header-color,\n    var(--link-color,\n    inherit)));\n}\n\n/**\n * [hidden]\n */\n\ngaia-header[hidden] {\n  display: none;\n}\n\n/** Reset\n ---------------------------------------------------------*/\n\n::-moz-focus-inner { border: 0; }\n\n/** Inner\n ---------------------------------------------------------*/\n\n.inner {\n  display: flex;\n  min-height: 50px;\n\n  background:\n    var(--header-background,\n    var(--background,\n    #fff));\n}\n\n/** Action Button\n ---------------------------------------------------------*/\n\n/**\n * 1. Hidden by default\n */\n\n.action-button {\n  display: none; /* 1 */\n  position: relative;\n  align-items: center;\n  width: 50px;\n  font-size: 30px;\n  border: none;\n\n  color:\n    var(--header-action-button-color,\n    var(--header-icon-color,\n    var(--gaia-header-button-color)));\n}\n\n/**\n * .action-supported\n *\n * 1. For icon vertical-alignment\n */\n\n.supported-action .action-button {\n  display: flex; /* 1 */\n}\n\n/** Action Button Icon\n ---------------------------------------------------------*/\n\n/**\n * 1. To enable vertical alignment.\n */\n\n.action-button:before {\n  display: block;\n}\n\n/** Action Button Text\n ---------------------------------------------------------*/\n\n/**\n * To provide custom localized content for\n * the action-button, we allow the user\n * to provide an element with the class\n * .l10n-action. This node is then\n * pulled inside the real action-button.\n *\n * Example:\n *\n *   <gaia-header action=\"back\">\n *     <span class=\"l10n-action\" aria-label=\"Back\">Localized text</span>\n *     <h1>title</h1>\n *   </gaia-header>\n */\n\n.-content .l10n-action {\n  position: absolute;\n  left: 0;\n  top: 0;\n  width: 100%;\n  height: 100%;\n  font-size: 0;\n}\n\n/** Title\n ---------------------------------------------------------*/\n\n/**\n * 1. Vertically center text. We can't use flexbox\n *    here as it breaks text-overflow ellipsis\n *    without an inner div.\n */\n\n.-content h1 {\n  flex: 1;\n  margin: 0;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  overflow: hidden;\n  text-align: center;\n  line-height: 50px; /* 1 */\n  font-weight: 300;\n  font-style: italic;\n  font-size: 24px;\n\n  color:\n    var(--header-title-color,\n    var(--header-color,\n    var(--title-color,\n    inherit)));\n}\n\n/**\n * .flush-left\n *\n * When the fitted text is flush with the\n * edge of the left edge of the container\n * we pad it in a bit.\n */\n\n.-content h1.flush-left {\n  padding-left: 10px;\n}\n\n/**\n * .flush-right\n *\n * When the fitted text is flush with the\n * edge of the right edge of the container\n * we pad it in a bit.\n */\n\n.-content h1.flush-right {\n  padding-right: 10px; /* 1 */\n}\n\n/** Buttons\n ---------------------------------------------------------*/\n\na,\nbutton,\n.-content a,\n.-content button {\n  box-sizing: border-box;\n  display: flex;\n  border: none;\n  width: auto;\n  height: auto;\n  margin: 0;\n  padding: 0 10px;\n  font-size: 14px;\n  line-height: 1;\n  min-width: 50px;\n  align-items: center;\n  justify-content: center;\n  text-decoration: none;\n  text-align: center;\n  background: none;\n  border-radius: 0;\n  font-style: italic;\n\n  transition:\n    var(--button-transition);\n\n  color:\n    var(--gaia-header-button-color);\n}\n\n/**\n * .active\n *\n * Turn off transiton-delay so the\n * active state shows instantly.\n *\n * Only apply the :active state when the\n * component indicates an interaction is\n * taking place.\n */\n\na.active,\nbutton.active,\n.-content a.active,\n.-content button.active {\n  opacity: 0.2;\n  transition: none;\n}\n\n/**\n * [hidden]\n */\n\n.-content a[hidden],\n.-content button[hidden] {\n  display: none;\n}\n\n/**\n * [disabled]\n */\n\n.-content a[disabled],\n.-content button[disabled] {\n  pointer-events: none;\n  opacity: 0.5;\n}\n\n/** Icon Buttons\n ---------------------------------------------------------*/\n\n/**\n * Icons are a different color to text\n */\n\n.-content .icon,\n.-content [data-icon] {\n  color:\n    var(--header-icon-color,\n    var(--gaia-header-button-color));\n}\n\n/** Icons\n ---------------------------------------------------------*/\n\n[class^=\"icon-\"]:before,\n[class*=\"icon-\"]:before {\n  font-family: 'gaia-icons';\n  font-style: normal;\n  text-rendering: optimizeLegibility;\n  font-weight: 500;\n}\n\n.icon-back:before { content: 'back'; }\n.icon-menu:before { content: 'menu'; }\n.icon-close:before { content: 'close'; }\n</style>\n\n  <div class=\"inner\">\n    <button class=\"action-button\">\n      <content select=\".l10n-action\"></content>\n    </button>\n    <content select=\"h1,h2,h3,h4,a,button\"></content>\n  </div>\n\n</template>\n\n\n", "src/component.html"));
+  
+
+}).call(this);
