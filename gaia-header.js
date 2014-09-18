@@ -223,7 +223,8 @@ var template = `
 
 :host {
   display: block;
-
+}
+:root {
   --gaia-header-button-color:
     var(--header-button-color,
     var(--header-color,
@@ -404,7 +405,7 @@ button,
   font-style: italic;
 
   transition:
-    var(--button-trasition);
+    var(--button-transition);
 
   color:
     var(--gaia-header-button-color);
