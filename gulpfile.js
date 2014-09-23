@@ -65,11 +65,16 @@ function mungeComponentJS () {
     var ast = esprima.parse(src);
 
     types.visit(ast, {
-      // Find .innerHTML = `...` and munge the markup
+      // Find template.innerHTML = `...`  or template = `...`
+      // TODO: Any way to make this less fragile?
       visitTemplateLiteral: function (path) {
         var parent = path.parent.node;
-        if ('AssignmentExpression' === parent.type &&
-            'innerHTML' === parent.left.property.name) {
+        var shouldMunge =
+          (('AssignmentExpression' === parent.type &&
+            'innerHTML' === parent.left.property.name) ||
+           ('VariableDeclarator' === parent.type &&
+            'template' === parent.id.name));
+        if (shouldMunge) {
           // TODO: Account for all the .quasis and .expressions
           var fromHTML = path.value.quasis[0].value.raw;
           var toHTML = mungeComponentHTML(fromHTML);
